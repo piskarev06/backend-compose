@@ -1,0 +1,71 @@
+version: '3.8'
+
+networks:
+  backend-compose:
+
+services:
+  nxginx:
+    depends_on:
+      - backend-auth
+      - backend-notifications
+    # restart: always
+    networks:
+      - backend-compose
+    build:
+      dockerfile: Dockerfile
+      context: "./nginx"
+    ports:
+      - "3050:80"
+
+  backend-auth:
+    # restart: always
+    networks:
+      - backend-compose
+    build:
+      dockerfile: Dockerfile
+      context: './apps/backend-auth'
+    depends_on:
+      - kafka
+    volumes:
+      - /apps/backend-auth/node_modules
+      - ./apps/backend-auth:/apps/backend-auth
+    ports:
+      - '3000:3000'
+
+  backend-notifications:
+    # restart: always
+    networks:
+      - backend-compose
+    build:
+      dockerfile: Dockerfile
+      context: './apps/backend-notifications'
+    depends_on:
+      - kafka
+    volumes:
+      - /apps/backend-notifications/node_modules
+      - ./apps/backend-notifications:/apps/backend-notifications
+    ports:
+      - '3001:3000'
+
+  kafka:
+  # restart: always
+    networks:
+      - backend-compose
+    image: docker.io/bitnami/kafka:3.8
+    ports:
+      - "9092:9092"
+    volumes:
+      - "kafka_data:/bitnami"
+    environment:
+      # KRaft settings
+      - KAFKA_CFG_NODE_ID=0
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
+      # Listeners
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://:9092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+volumes:
+  kafka_data:
